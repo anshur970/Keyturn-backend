@@ -4,6 +4,7 @@
   "version": "1.0.0",
   "main": "server.js",
   "scripts": {
+    "postinstall": "prisma generate",
     "start": "node server.js",
     "db:generate": "prisma generate",
     "db:push": "prisma db push",
