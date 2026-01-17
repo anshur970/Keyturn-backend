@@ -1,0 +1,30 @@
+{
+  "name": "keyturn-backend",
+  "type": "module",
+  "version": "1.0.0",
+  "main": "server.js",
+  "scripts": {
+    "start": "node server.js",
+    "db:generate": "prisma generate",
+    "db:push": "prisma db push",
+    "studio": "prisma studio"
+  },
+  "dependencies": {
+    "@prisma/adapter-pg": "^7.2.0",
+    "@prisma/client": "^7.2.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^2.4.3",
+    "body-parser": "^2.2.2",
+    "cors": "^2.8.5",
+    "dotenv": "^16.6.1",
+    "express": "^4.22.1",
+    "helmet": "^7.1.0",
+    "jsonwebtoken": "^9.0.3",
+    "mongoose": "^8.6.3",
+    "morgan": "^1.10.0",
+    "pg": "^8.17.0"
+  },
+  "devDependencies": {
+    "prisma": "^7.2.0"
+  }
+}
