@@ -2,9 +2,12 @@ import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma.js";
+
 import { requireAuth } from "../middleware/auth.js";
 
-console.log("✅ auth.routes.js loaded");
+if (process.env.NODE_ENV !== "production") {
+  console.log("✅ auth.routes.js loaded");
+}
 
 const router = express.Router();
 
@@ -14,7 +17,7 @@ function signToken(user) {
     { email: user.email, role: user.role },
     process.env.JWT_SECRET,
     {
-      subject: user.id,
+      subject: String(user.id),
       expiresIn: process.env.JWT_EXPIRES_IN || "7d",
     }
   );
@@ -29,8 +32,6 @@ function getExpiryDateFromToken(token) {
 /**
  * POST /api/auth/register
  * body: { name, email, password }
- * Creates an ADMIN by default (because your schema default is admin),
- * but we’ll explicitly set role: "admin" here to match your usage.
  */
 router.post("/register", async (req, res, next) => {
   try {
@@ -50,7 +51,7 @@ router.post("/register", async (req, res, next) => {
         name: String(name).trim(),
         email: lower,
         passwordHash,
-        role: "admin", // so you can access /api/agents right away
+        role: "admin",
       },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
@@ -105,24 +106,18 @@ router.post("/login", async (req, res, next) => {
 /**
  * POST /api/auth/logout
  * Header: Authorization: Bearer <token>
- * Adds token to TokenBlacklist with expiresAt so it’s blocked until it expires.
  */
 router.post("/logout", requireAuth, async (req, res, next) => {
   try {
     const token = req.token;
-
     const expiresAt = getExpiryDateFromToken(token);
 
     await prisma.tokenBlacklist.create({
-      data: {
-        token,
-        expiresAt,
-      },
+      data: { token, expiresAt },
     });
 
     res.json({ message: "Logged out successfully" });
   } catch (e) {
-    // token unique constraint: if already blacklisted, treat as success
     if (e?.code === "P2002") return res.json({ message: "Logged out successfully" });
     next(e);
   }
