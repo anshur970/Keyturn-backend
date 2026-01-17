@@ -1,7 +1,7 @@
 import express from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { prisma } from "../lib/prisma.js";
+import prisma from "../lib/prisma.js";
 import { requireAuth } from "../middleware/auth.js";
 
 console.log("✅ auth.routes.js loaded");

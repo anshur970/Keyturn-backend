@@ -1,5 +1,7 @@
 import jwt from "jsonwebtoken";
-import { prisma } from "../lib/prisma.js";
+
+import prisma from "../lib/prisma.js";
+
 
 export async function requireAuth(req, res, next) {
   try {
