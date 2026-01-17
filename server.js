@@ -1,7 +1,6 @@
 import "dotenv/config";
 import express from "express";
 import cors from "cors";
-import bodyParser from "body-parser";
 
 import authRoutes from "./routes/auth.routes.js";
 import agentsRoutes from "./routes/agents.routes.js";
@@ -10,28 +9,40 @@ import { requireAuth } from "./middleware/auth.js";
 const app = express();
 const PORT = process.env.PORT || 5001;
 
+// CORS
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
 
-// Middleware
-app.use(cors());
-app.use(bodyParser.json());
-app.use(bodyParser.urlencoded({ extended: true }));
+// Body parsing
+app.use(express.json());
+app.use(express.urlencoded({ extended: true }));
 
+// Request logger (dev only)
+if (process.env.NODE_ENV !== "production") {
+  app.use((req, res, next) => {
+    console.log("➡️", req.method, req.originalUrl);
+    next();
+  });
+}
 
-// Routes
-app.use((req, res, next) => {
-  console.log("➡️", req.method, req.originalUrl);
-  next();
+// Root + health
+app.get("/", (req, res) => {
+  res.json({ success: true, message: "KeyTurn API is running" });
 });
 
+app.get("/health", (req, res) => {
+  res.json({ success: true, status: "ok" });
+});
+
+// API routes
 app.use("/api/auth", authRoutes);
 app.use("/api/agents", agentsRoutes);
 
-// Debug router info (optional)
-console.log("authRoutes type:", typeof authRoutes);
-console.log("authRoutes keys:", Object.keys(authRoutes));
-console.log("authRoutes isRouter stack length:", authRoutes?.stack?.length);
-
-// Protected route example
+// Protected route
 app.get("/api/protected", requireAuth, (req, res) => {
   res.json({
     success: true,
@@ -40,7 +51,7 @@ app.get("/api/protected", requireAuth, (req, res) => {
   });
 });
 
-// ✅ Error handling middleware (must NOT call next after responding)
+// Error handler
 app.use((err, req, res, next) => {
   console.error("🔥", err);
 
@@ -48,12 +59,11 @@ app.use((err, req, res, next) => {
 
   res.status(500).json({
     success: false,
-    message: err.message,
+    message: err.message || "Server error",
     code: err.code,
     meta: err.meta,
   });
 });
-
 
 // 404 handler
 app.use((req, res) => {
@@ -63,16 +73,10 @@ app.use((req, res) => {
   });
 });
 
-// ✅ ONE listen only (at the end)
+// Listen
 app.listen(PORT, () => {
-  console.log(`🚀 Server is running on http://localhost:${PORT}`);
-}).on("error", (err) => {
-  if (err.code === "EADDRINUSE") {
-    console.error(`❌ Port ${PORT} already in use. Kill the old node process.`);
-    process.exit(1);
-  }
+  console.log(`Server is running on http://localhost:${PORT}`);
+
 });
 
 export default app;
-
-
