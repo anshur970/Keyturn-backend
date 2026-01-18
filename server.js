@@ -29,13 +29,13 @@ if (process.env.NODE_ENV !== "production") {
   });
 }
 
-// Root + health
+// Root + health for testing
 app.get("/", (req, res) => {
-  res.json({ success: true, message: "KeyTurn API is running" });
+  res.json({ success: true, message: "Welcome KeyTurn API is running" });
 });
 
 app.get("/health", (req, res) => {
-  res.json({ success: true, status: "ok" });
+  res.json({ success: true, status: "ok" }); 
 });
 
 // API routes

@@ -23,9 +23,9 @@ Example Postman steps for login:
   ```
 - After response, copy `token` to the environment.
 
-## Base URL
 
-Default: `http://localhost:5001`
+
+## Base URL:** `https://keyturn-backend-2.onrender.com`
 
 ## Authentication
 
