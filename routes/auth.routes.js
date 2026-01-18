@@ -2,10 +2,9 @@
 import { Router } from "express";
 import jwt from "jsonwebtoken";
 import bcrypt from "bcryptjs";
-import { PrismaClient } from "@prisma/client";
+import prisma from "../lib/prisma.js";
 
 const router = Router();
-const prisma = new PrismaClient();
 
 /**
  * Helpers
@@ -30,7 +29,10 @@ router.post("/register", async (req, res, next) => {
     const { name, email, password, role } = req.body || {};
 
     if (!name || !email || !password) {
-      return res.status(400).json({ success: false, message: "Name, email and password are required" });
+      return res.status(400).json({
+        success: false,
+        message: "Name, email and password are required",
+      });
     }
 
     const existing = await prisma.user.findUnique({ where: { email } });
@@ -40,17 +42,19 @@ router.post("/register", async (req, res, next) => {
 
     const hashedPassword = await bcrypt.hash(password, 10);
 
+    // Role must match Prisma enum: admin | agent | customer
+    const finalRole = role && ["admin", "agent", "customer"].includes(role) ? role : "customer";
+
     const user = await prisma.user.create({
       data: {
         name,
         email,
-        password: hashedPassword,
-        role: role || "user",
+        passwordHash: hashedPassword,
+        role: finalRole,
       },
       select: { id: true, name: true, email: true, role: true },
     });
 
-    // If you already have JWT secret env var name different, change it here:
     const secret = process.env.JWT_SECRET;
     if (!secret) {
       return res.status(500).json({ success: false, message: "JWT_SECRET is not set" });
@@ -84,7 +88,7 @@ router.post("/login", async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
 
-    const ok = await bcrypt.compare(password, user.password);
+    const ok = await bcrypt.compare(password, user.passwordHash);
     if (!ok) {
       return res.status(401).json({ success: false, message: "Invalid email or password" });
     }
@@ -108,8 +112,6 @@ router.post("/login", async (req, res, next) => {
 
 /**
  * GET /api/auth/me
- * Requires Authorization: Bearer <token>
- * Checks token validity and blacklist.
  */
 router.get("/me", async (req, res, next) => {
   try {
@@ -118,7 +120,6 @@ router.get("/me", async (req, res, next) => {
       return res.status(401).json({ success: false, message: "Missing Authorization header" });
     }
 
-    // Blacklist check first (fast fail)
     if (await isTokenRevoked(token)) {
       return res.status(401).json({ success: false, message: "Token has been revoked" });
     }
@@ -157,25 +158,21 @@ router.get("/me", async (req, res, next) => {
 
 /**
  * POST /api/auth/logout
- * Idempotent logout: always returns success even if token missing/invalid/already revoked
  */
 router.post("/logout", async (req, res, next) => {
   try {
     const token = getBearerToken(req);
 
-    // No token? treat as already logged out
     if (!token) {
       return res.status(200).json({ message: "Logged out successfully" });
     }
 
-    // If already blacklisted, treat as success
     const exists = await prisma.tokenBlacklist.findUnique({ where: { token } });
     if (exists) {
       return res.status(200).json({ message: "Logged out successfully" });
     }
 
-    // Determine expiry (best effort)
-    let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000); // fallback 7d
+    let expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000);
     const decoded = jwt.decode(token);
     if (decoded && typeof decoded === "object" && decoded.exp) {
       expiresAt = new Date(Number(decoded.exp) * 1000);
@@ -187,7 +184,6 @@ router.post("/logout", async (req, res, next) => {
 
     return res.status(200).json({ message: "Logged out successfully" });
   } catch (e) {
-    // If unique constraint hit anyway (race condition), still success
     if (e?.code === "P2002") {
       return res.status(200).json({ message: "Logged out successfully" });
     }
