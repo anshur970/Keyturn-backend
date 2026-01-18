@@ -1,8 +1,9 @@
+// routes/ratePlans.routes.js
 import express from "express";
 import prisma from "../lib/prisma.js";
 
-import { requireAuth } from "../../middleware/auth.js";
-import { requireRole } from "../../middleware/roles.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireRole } from "../middleware/roles.js";
 
 const router = express.Router();
 
@@ -12,8 +13,7 @@ router.get("/", requireAuth, requireRole("admin", "agent"), async (req, res, nex
     const { active } = req.query;
 
     const ratePlans = await prisma.ratePlan.findMany({
-      where:
-        active === "true" ? { active: true } : active === "false" ? { active: false } : undefined,
+      where: active === "true" ? { active: true } : active === "false" ? { active: false } : undefined,
       orderBy: { createdAt: "desc" },
     });
 

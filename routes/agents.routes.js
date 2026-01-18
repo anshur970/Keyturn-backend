@@ -1,3 +1,4 @@
+// routes/agents.routes.js
 import express from "express";
 import bcrypt from "bcryptjs";
 import prisma from "../lib/prisma.js";
@@ -25,16 +26,19 @@ router.get("/", requireAuth, requireRole("admin"), async (req, res, next) => {
 router.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
   try {
     const { name, email, password } = req.body || {};
-    if (!name || !email || !password) return res.status(400).json({ message: "name, email, password required" });
+    if (!name || !email || !password) {
+      return res.status(400).json({ message: "name, email, password required" });
+    }
 
     const lower = email.toLowerCase();
     const exists = await prisma.user.findUnique({ where: { email: lower } });
     if (exists) return res.status(409).json({ message: "Email already in use" });
 
-    const passwordHash = await bcrypt.hash(password, 10);
+    // ✅ schema uses passwordHash
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const agent = await prisma.user.create({
-      data: { name, email: lower, passwordHash, role: "agent" },
+      data: { name, email: lower, passwordHash: hashedPassword, role: "agent" },
       select: { id: true, name: true, email: true, role: true, createdAt: true },
     });
 
@@ -48,8 +52,11 @@ router.post("/", requireAuth, requireRole("admin"), async (req, res, next) => {
 router.put("/:id", requireAuth, requireRole("admin"), async (req, res, next) => {
   try {
     const updates = { ...req.body };
+
+    // Don't allow changing password or role from this endpoint
+    delete updates.password;
     delete updates.passwordHash;
-    delete updates.role; // keep role controlled
+    delete updates.role;
 
     const agent = await prisma.user.update({
       where: { id: req.params.id },

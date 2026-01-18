@@ -1,8 +1,9 @@
+// routes/customers.routes.js
 import express from "express";
 import prisma from "../lib/prisma.js";
 
-import { requireAuth } from "../../middleware/auth.js";
-import { requireRole } from "../../middleware/roles.js";
+import { requireAuth } from "../middleware/auth.js";
+import { requireRole } from "../middleware/roles.js";
 
 const router = express.Router();
 
@@ -45,7 +46,22 @@ router.get("/:id", requireAuth, requireRole("admin", "agent"), async (req, res, 
 // POST /api/customers
 router.post("/", requireAuth, requireRole("admin", "agent"), async (req, res, next) => {
   try {
-    const created = await prisma.customer.create({ data: req.body });
+    const { fullName, name, email, phone, driverLicense } = req.body || {};
+
+    // ✅ minimal validation
+    const finalName = fullName || name;
+    if (!finalName) return res.status(400).json({ message: "Customer name is required" });
+
+    // ✅ Only pick known fields (prevents accidental extra fields)
+    const created = await prisma.customer.create({
+      data: {
+        fullName: finalName,
+        email: email || null,
+        phone: phone || null,
+        driverLicense: driverLicense || null,
+      },
+    });
+
     res.status(201).json({ customer: created });
   } catch (e) {
     next(e);
@@ -55,10 +71,18 @@ router.post("/", requireAuth, requireRole("admin", "agent"), async (req, res, ne
 // PUT /api/customers/:id
 router.put("/:id", requireAuth, requireRole("admin", "agent"), async (req, res, next) => {
   try {
+    const { fullName, name, email, phone, driverLicense } = req.body || {};
+
     const updated = await prisma.customer.update({
       where: { id: req.params.id },
-      data: req.body,
+      data: {
+        ...(fullName || name ? { fullName: fullName || name } : {}),
+        ...(email !== undefined ? { email: email || null } : {}),
+        ...(phone !== undefined ? { phone: phone || null } : {}),
+        ...(driverLicense !== undefined ? { driverLicense: driverLicense || null } : {}),
+      },
     });
+
     res.json({ customer: updated });
   } catch (e) {
     if (e?.code === "P2025") return res.status(404).json({ message: "Customer not found" });

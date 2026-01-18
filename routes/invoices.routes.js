@@ -1,3 +1,4 @@
+// routes/invoices.routes.js
 import express from "express";
 import prisma from "../lib/prisma.js";
 
@@ -44,7 +45,8 @@ router.post("/from-reservation/:reservationId", requireAuth, requireRole("admin"
     const v = reservation.vehicle;
     const vehicleLabel = v ? `${v.make} ${v.model} ${v.year} (${v.licensePlate})` : "";
 
-    const dailyRate = v?.dailyRate || 0;
+    const dailyRate = Number(v?.dailyRate ?? 0);
+
     const ms = new Date(reservation.endDate) - new Date(reservation.startDate);
     const days = Math.max(1, Math.ceil(ms / (1000 * 60 * 60 * 24)));
     const subtotal = days * dailyRate;
@@ -53,10 +55,17 @@ router.post("/from-reservation/:reservationId", requireAuth, requireRole("admin"
     const discount = Number(req.body?.discount ?? 0);
     const total = Math.max(0, subtotal + tax - discount);
 
+    // ✅ safer snapshot of customer name (works with different schemas)
+    const customerName =
+      reservation.customerName ??
+      reservation.customer?.fullName ??
+      reservation.customer?.name ??
+      "";
+
     const invoice = await prisma.invoice.create({
       data: {
         reservationId: reservation.id,
-        customerName: reservation.customerName, // snapshot
+        customerName, // snapshot
         vehicleLabel,
         subtotal,
         tax,
